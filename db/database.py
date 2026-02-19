@@ -14,8 +14,11 @@ It is excluded from git via .gitignore.
 """
 
 import sqlite3
+import logging
 from pathlib import Path
 from core.config_manager import get_config_dir
+
+logger = logging.getLogger("jobtrack.db")
 
 DB_FILENAME = "jobtrack.db"
 SCHEMA_VERSION = 1
@@ -32,14 +35,14 @@ def get_connection() -> sqlite3.Connection:
     Creates the database and runs initial schema if it doesn't exist.
     Sets row_factory to sqlite3.Row for dict-like row access.
     """
-    # TODO: Implement connection
-    # 1. conn = sqlite3.connect(get_db_path())
-    # 2. conn.row_factory = sqlite3.Row
-    # 3. conn.execute("PRAGMA foreign_keys = ON")
-    # 4. Call _initialize(conn) to create tables if needed
-    # 5. Call _migrate(conn) to apply any pending migrations
-    # 6. Return conn
-    raise NotImplementedError
+    db_path = get_db_path()
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")  # Better concurrent read performance
+    _initialize(conn)
+    _migrate(conn)
+    return conn
 
 
 def _initialize(conn: sqlite3.Connection) -> None:
@@ -47,8 +50,14 @@ def _initialize(conn: sqlite3.Connection) -> None:
     Create all tables if they don't already exist.
     Reads schema from db/schema.sql.
     """
-    # TODO: Read schema.sql and execute it
-    raise NotImplementedError
+    schema_path = Path(__file__).parent / "schema.sql"
+    try:
+        sql = schema_path.read_text(encoding="utf-8")
+        conn.executescript(sql)
+        conn.commit()
+    except Exception as e:
+        logger.error(f"Failed to initialize database schema: {e}")
+        raise
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -56,6 +65,28 @@ def _migrate(conn: sqlite3.Connection) -> None:
     Apply schema migrations based on the stored schema_version.
     Add migration blocks here as SCHEMA_VERSION increments.
     """
-    # TODO: Read schema_version from a metadata table
-    # Apply migrations for each version below the current SCHEMA_VERSION
-    raise NotImplementedError
+    try:
+        row = conn.execute("SELECT value FROM metadata WHERE key = 'schema_version'").fetchone()
+        current_version = int(row["value"]) if row else 0
+    except Exception:
+        current_version = 0
+
+    if current_version >= SCHEMA_VERSION:
+        return  # Already up to date
+
+    # Future migrations go here:
+    # if current_version < 2:
+    #     conn.execute("ALTER TABLE applications ADD COLUMN notes TEXT DEFAULT ''")
+    #     conn.execute("UPDATE metadata SET value = '2' WHERE key = 'schema_version'")
+    #     conn.commit()
+    #     current_version = 2
+
+    logger.debug(f"Database schema is current at version {SCHEMA_VERSION}")
+
+
+def close(conn: sqlite3.Connection) -> None:
+    """Safely close a database connection."""
+    try:
+        conn.close()
+    except Exception:
+        pass
