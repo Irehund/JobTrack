@@ -6,13 +6,14 @@ platform-appropriate AppData directory. Handles default values and
 version migrations so the app doesn't break when new settings are added.
 
 Config file location:
-    Windows: %APPDATA%\JobTrack\config.json
+    Windows: %APPDATA%/JobTrack/config.json
     macOS:   ~/Library/Application Support/JobTrack/config.json
 
 Sensitive values (API keys) are NOT stored here —
 they are stored via core/keyring_manager.py instead.
 """
 
+import copy
 import json
 import os
 import platform
@@ -83,23 +84,57 @@ def load() -> dict[str, Any]:
     Load config from disk, merging with defaults for any missing keys.
     If config.json does not exist, returns a fresh copy of DEFAULTS.
     """
-    # TODO: Implement load logic
-    # 1. Read config.json if it exists
-    # 2. Deep-merge with DEFAULTS so missing keys are filled in
-    # 3. Run _migrate() to handle version upgrades
-    # 4. Return the merged config dict
-    raise NotImplementedError
+    config_path = get_config_path()
+
+    if not config_path.exists():
+        return copy.deepcopy(DEFAULTS)
+
+    try:
+        with open(config_path, "r", encoding="utf-8") as f:
+            on_disk = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        # Corrupted or unreadable config — return defaults.
+        # The next save() call will overwrite with clean defaults.
+        return copy.deepcopy(DEFAULTS)
+
+    # Merge on-disk values into defaults so any new keys are filled in
+    merged = _deep_merge(copy.deepcopy(DEFAULTS), on_disk)
+
+    # Apply any version migrations
+    merged = _migrate(merged)
+
+    return merged
 
 
 def save(config: dict[str, Any]) -> None:
     """
     Save config dict to disk as pretty-printed JSON.
-    Raises OSError if the file cannot be written.
+    Writes atomically: to a .tmp file first, then renames, so a crash
+    mid-write can never corrupt the config file.
+
+    Raises:
+        OSError: If the file cannot be written.
     """
-    # TODO: Implement save logic
-    # 1. Serialize config to JSON with indent=2
-    # 2. Write to get_config_path() atomically (write to .tmp then rename)
-    raise NotImplementedError
+    config_path = get_config_path()
+    tmp_path = config_path.with_suffix(".tmp")
+
+    try:
+        with open(tmp_path, "w", encoding="utf-8") as f:
+            json.dump(config, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        # Atomic rename
+        try:
+            tmp_path.replace(config_path)
+        except OSError:
+            # Fallback for older Windows versions
+            if config_path.exists():
+                config_path.unlink()
+            tmp_path.rename(config_path)
+    except OSError:
+        if tmp_path.exists():
+            tmp_path.unlink()
+        raise
 
 
 def reset() -> dict[str, Any]:
@@ -107,29 +142,48 @@ def reset() -> dict[str, Any]:
     Delete config.json and return a fresh copy of DEFAULTS.
     Used by 'Reset to Defaults' in Preferences.
     """
-    # TODO: Delete config.json if it exists, return copy of DEFAULTS
-    raise NotImplementedError
+    config_path = get_config_path()
+    if config_path.exists():
+        config_path.unlink()
+    return copy.deepcopy(DEFAULTS)
 
 
 def _deep_merge(base: dict, override: dict) -> dict:
     """
     Recursively merge override into base.
-    Keys in base that are missing from override are preserved.
+    - Keys in override overwrite keys in base at the same level.
+    - Nested dicts are merged recursively rather than replaced wholesale.
+    - Keys in base that are absent from override are preserved as-is.
+
+    Example:
+        base     = {"a": 1, "b": {"x": 10, "y": 20}}
+        override = {"b": {"x": 99}, "c": 3}
+        result   = {"a": 1, "b": {"x": 99, "y": 20}, "c": 3}
     """
-    # TODO: Implement recursive dict merge
-    raise NotImplementedError
+    result = copy.deepcopy(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = copy.deepcopy(value)
+    return result
 
 
 def _migrate(config: dict[str, Any]) -> dict[str, Any]:
     """
     Apply any necessary migrations when the config_version on disk
     is older than the current CONFIG_VERSION.
-    Each migration step should be added as a versioned block here.
+
+    Each migration step updates the version number after applying changes
+    so they are idempotent and never applied twice.
     """
-    # TODO: Add migration steps as CONFIG_VERSION increments
-    # Example structure:
-    #   version = config.get("config_version", 0)
-    #   if version < 2:
-    #       config["new_key"] = "default_value"
-    #       config["config_version"] = 2
+    version = config.get("config_version", 0)
+
+    # Future migrations go here as CONFIG_VERSION increments:
+    # if version < 2:
+    #     config.setdefault("new_section", {"new_key": "default_value"})
+    #     config["config_version"] = 2
+    #     version = 2
+
+    config["config_version"] = CONFIG_VERSION
     return config
