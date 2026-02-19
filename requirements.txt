@@ -1,0 +1,34 @@
+# JobTrack — Python Dependencies
+# Install with: pip install -r requirements.txt
+
+# ── UI Framework ──────────────────────────────────────────
+customtkinter==5.2.2          # Modern tkinter widgets with built-in theming
+Pillow==10.3.0                # Image handling for wizard screenshots and icons
+
+# ── Map Rendering ─────────────────────────────────────────
+folium==0.16.0                # Generates interactive Leaflet.js maps
+
+# ── Job Provider APIs ─────────────────────────────────────
+requests==2.31.0              # HTTP requests for all API calls
+python-dotenv==1.0.1          # Load env vars during development (not used in prod)
+
+# ── AI Assistant ──────────────────────────────────────────
+anthropic==0.25.0             # Anthropic Claude API client
+
+# ── Google Integration ────────────────────────────────────
+gspread==6.1.2                # Google Sheets read/write
+google-auth-oauthlib==1.2.0   # Google OAuth2 flow
+google-auth-httplib2==0.2.0   # HTTP adapter for google-auth
+
+# ── Secure Credential Storage ─────────────────────────────
+keyring==25.2.1               # OS-level encrypted credential storage (Windows Credential Manager)
+
+# ── Local Database ────────────────────────────────────────
+# sqlite3 is built into Python — no install needed
+
+# ── Packaging ─────────────────────────────────────────────
+pyinstaller==6.6.0            # Builds the standalone .exe
+
+# ── Testing ───────────────────────────────────────────────
+pytest==8.2.0                 # Test runner
+pytest-mock==3.14.0           # Mocking for API tests

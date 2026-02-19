@@ -1,0 +1,46 @@
+# JobTrack — Git Ignore Rules
+
+# ── Python ────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.spec
+
+# ── Virtual Environments ──────────────────────────────────
+venv/
+.venv/
+env/
+.env/
+
+# ── User Config & Secrets — NEVER COMMIT THESE ───────────
+config.json
+*.db
+*.sqlite
+*.sqlite3
+token.json
+google_token.json
+
+# ── IDE ───────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ── OS ────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Test & Coverage ───────────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+
+# ── PyInstaller output ────────────────────────────────────
+dist/
+build/
