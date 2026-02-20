@@ -6,7 +6,7 @@ Creates the database file in the platform AppData directory on first run.
 Handles schema migrations automatically on version upgrades.
 
 Database location:
-    Windows: %APPDATA%\JobTrack\jobtrack.db
+    Windows: %APPDATA%/JobTrack/jobtrack.db
     macOS:   ~/Library/Application Support/JobTrack/jobtrack.db
 
 The database file is the user's data — it stays on their machine.
@@ -21,7 +21,7 @@ from core.config_manager import get_config_dir
 logger = logging.getLogger("jobtrack.db")
 
 DB_FILENAME = "jobtrack.db"
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def get_db_path() -> Path:
@@ -74,12 +74,21 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if current_version >= SCHEMA_VERSION:
         return  # Already up to date
 
-    # Future migrations go here:
-    # if current_version < 2:
-    #     conn.execute("ALTER TABLE applications ADD COLUMN notes TEXT DEFAULT ''")
-    #     conn.execute("UPDATE metadata SET value = '2' WHERE key = 'schema_version'")
-    #     conn.commit()
-    #     current_version = 2
+    # v2: Add sheets_sync table for Google Sheets row tracking
+    if current_version < 2:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS sheets_sync (
+                application_id  INTEGER PRIMARY KEY
+                                REFERENCES applications(id) ON DELETE CASCADE,
+                sheets_row      INTEGER NOT NULL,
+                spreadsheet_id  TEXT NOT NULL DEFAULT '',
+                last_synced_at  TEXT NOT NULL DEFAULT (datetime('now'))
+            )
+        """)
+        conn.execute("UPDATE metadata SET value = '2' WHERE key = 'schema_version'")
+        conn.commit()
+        current_version = 2
+        logger.info("Database migrated to schema version 2 (sheets_sync table).")
 
     logger.debug(f"Database schema is current at version {SCHEMA_VERSION}")
 

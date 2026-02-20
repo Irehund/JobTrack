@@ -52,6 +52,16 @@ CREATE TABLE IF NOT EXISTS commute_cache (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_commute_cache_coords
     ON commute_cache (home_lat, home_lon, job_lat, job_lon);
 
+-- ── Google Sheets Sync ───────────────────────────────────────────────────────
+-- Tracks which local application row maps to which Google Sheets row number.
+-- Allows status updates to target the right row without a full sheet re-read.
+CREATE TABLE IF NOT EXISTS sheets_sync (
+    application_id  INTEGER PRIMARY KEY REFERENCES applications(id) ON DELETE CASCADE,
+    sheets_row      INTEGER NOT NULL,       -- 1-based row in the spreadsheet (2+ = data rows)
+    spreadsheet_id  TEXT NOT NULL DEFAULT '',
+    last_synced_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 -- ── Indexes ──────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_applications_status
     ON applications (status);
