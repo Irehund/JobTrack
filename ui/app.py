@@ -21,7 +21,6 @@ class JobTrackApp(ctk.CTk):
     def __init__(self):
         super().__init__()
 
-        # Load config and apply theme before any widgets are created
         self.config = config_manager.load()
         self._apply_theme(self.config.get("theme", "system"))
 
@@ -29,41 +28,42 @@ class JobTrackApp(ctk.CTk):
         self.minsize(WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT)
         self._center_window(1200, 750)
 
-        # Route to wizard or main window
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
+
         if not self.config.get("setup_complete", False):
             self._show_wizard()
         else:
             self._show_main_window()
 
     def _apply_theme(self, theme: str) -> None:
-        """
-        Apply the selected theme.
-        theme: "light" | "dark" | "system"
-        """
-        # TODO: Call ctk.set_appearance_mode(theme)
-        # CustomTkinter handles "system" automatically on Windows/macOS
-        raise NotImplementedError
+        valid = {"light", "dark", "system"}
+        ctk.set_appearance_mode(theme if theme in valid else "system")
+        ctk.set_default_color_theme("blue")
 
     def _show_wizard(self) -> None:
-        """Load the first-run setup wizard as the app's content."""
-        # TODO: Import and instantiate WizardController, add to self
-        raise NotImplementedError
+        from ui.wizard.wizard_controller import WizardController
+        self._current_view = WizardController(
+            self,
+            config=self.config,
+            on_complete=self.on_wizard_complete,
+        )
+        self._current_view.grid(row=0, column=0, sticky="nsew")
 
     def _show_main_window(self) -> None:
-        """Load the main application window."""
-        # TODO: Import and instantiate MainWindow, add to self
-        raise NotImplementedError
+        from ui.main_window import MainWindow
+        self._current_view = MainWindow(self, config=self.config)
+        self._current_view.grid(row=0, column=0, sticky="nsew")
 
     def on_wizard_complete(self, updated_config: dict) -> None:
-        """
-        Called by WizardController when setup finishes.
-        Switches from the wizard to the main window.
-        """
-        # TODO: Save updated_config, destroy wizard, show main window
-        raise NotImplementedError
+        """Called by WizardController when setup finishes."""
+        self.config = updated_config
+        config_manager.save(self.config)
+        # Destroy wizard and launch main window
+        self._current_view.destroy()
+        self._show_main_window()
 
     def _center_window(self, width: int, height: int) -> None:
-        """Center the window on the primary screen."""
         screen_w = self.winfo_screenwidth()
         screen_h = self.winfo_screenheight()
         x = (screen_w - width) // 2
