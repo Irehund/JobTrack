@@ -1,21 +1,35 @@
 """
-components/status_dropdown.py
-===============================
-Application status dropdown for Tracker panel.
-Auto-records timestamp on TIMESTAMPED_STATUSES selections.
-Triggers timeline column creation in db/jobs_repo.
+ui/components/status_dropdown.py
+==================================
+Status dropdown for the Tracker panel.
+Auto-records timestamps when a TIMESTAMPED_STATUS is selected.
 """
 
 import customtkinter as ctk
+from db.jobs_repo import ALL_STATUSES, update_status
 
 
 class StatusDropdown(ctk.CTkOptionMenu):
-    """See module docstring above."""
+    """Dropdown that auto-saves status changes to the database."""
 
-    def __init__(self, parent, **kwargs):
-        super().__init__(parent, **kwargs)
-        self._build()
+    def __init__(self, parent, application_id: int,
+                 current_status: str, on_change=None, **kwargs):
+        self._app_id = application_id
+        self._on_change = on_change
 
-    def _build(self) -> None:
-        """Build widgets. TODO: Implement."""
-        raise NotImplementedError
+        super().__init__(
+            parent,
+            values=ALL_STATUSES,
+            command=self._on_select,
+            width=150,
+            **kwargs,
+        )
+        self.set(current_status)
+
+    def _on_select(self, new_status: str):
+        try:
+            update_status(self._app_id, new_status)
+        except Exception as e:
+            print(f"StatusDropdown: Failed to update status — {e}")
+        if self._on_change:
+            self._on_change()
