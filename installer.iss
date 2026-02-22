@@ -16,7 +16,7 @@
 #define DistDir      "dist\JobTrack"
 
 [Setup]
-AppId={{A8F3C2D1-4B5E-4F8A-9C1D-2E3F4A5B6C7D}
+AppId={{28e59576-8448-4181-810c-8a98b36ae92d}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}

@@ -80,8 +80,8 @@ Requires **Python 3.11 or 3.12**.
 **1. Clone the repository**
 
 ```bash
-git clone https://github.com/Irehund/JobTracker.git
-cd JobTracker
+git clone https://github.com/Irehund/JobTrack.git
+cd JobTrack
 ```
 
 **2. Create a virtual environment** (strongly recommended)
