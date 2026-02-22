@@ -1,6 +1,6 @@
 """
 ui/wizard/step_api_keys.py
-===========================
+==========================
 Step 3: API key entry for each enabled provider.
 Shows a screenshot slideshow per provider and validates the key live.
 """
@@ -28,42 +28,36 @@ PROVIDER_INSTRUCTIONS = {
         ],
     },
     "indeed": {
-        "name": "Indeed",
+        "name": "Indeed / LinkedIn / Glassdoor",
         "steps": [
-            "Go to developer.indeed.com and sign in",
-            "Click 'My Apps' then 'Create new app'",
-            "Fill in the app name and description",
-            "Copy the Publisher ID from your app dashboard",
-            "Paste it below",
+            "Go to rapidapi.com and create a free account",
+            "Search for 'JSearch' in the API marketplace",
+            "Click 'Subscribe to Test' and select the free tier (10 requests/month)",
+            "Go to the JSearch API page and click 'Endpoints'",
+            "Copy your API key from the 'Header Parameters' section (X-RapidAPI-Key)",
+            "Paste it below — this single key covers Indeed, LinkedIn, AND Glassdoor",
         ],
         "fields": [
-            {"key": "indeed", "label": "Publisher ID", "placeholder": "Paste your Indeed Publisher ID here"},
+            {"key": "indeed", "label": "RapidAPI Key", "placeholder": "Paste your RapidAPI key here"},
         ],
     },
     "linkedin": {
         "name": "LinkedIn",
         "steps": [
-            "Go to linkedin.com/developers and sign in",
-            "Click 'Create App' and fill in the required fields",
-            "Under 'Auth', copy your Client ID and Client Secret",
-            "Note: LinkedIn API access may require business verification",
-            "Paste your Client ID below",
+            "LinkedIn jobs are searched using your RapidAPI key from the Indeed step",
+            "No separate LinkedIn API key is required",
+            "If you entered your RapidAPI key above, LinkedIn is already configured",
         ],
-        "fields": [
-            {"key": "linkedin", "label": "Client ID", "placeholder": "Paste your LinkedIn Client ID here"},
-        ],
+        "fields": [],
     },
     "glassdoor": {
         "name": "Glassdoor",
         "steps": [
-            "Go to glassdoor.com/developer and sign in",
-            "Request API access — approval may take a few days",
-            "Once approved, copy your Partner ID and Key",
-            "Paste your API key below",
+            "Glassdoor jobs are searched using your RapidAPI key from the Indeed step",
+            "No separate Glassdoor API key is required",
+            "If you entered your RapidAPI key above, Glassdoor is already configured",
         ],
-        "fields": [
-            {"key": "glassdoor", "label": "API Key", "placeholder": "Paste your Glassdoor API key here"},
-        ],
+        "fields": [],
     },
     "adzuna": {
         "name": "Adzuna",
@@ -71,10 +65,10 @@ PROVIDER_INSTRUCTIONS = {
             "Go to developer.adzuna.com and create a free account",
             "Click 'Create new application'",
             "Copy your App ID and App Key from the dashboard",
-            "Paste your App Key below",
+            "Enter them below in the format:  app_id:app_key  (with a colon between them)",
         ],
         "fields": [
-            {"key": "adzuna", "label": "App Key", "placeholder": "Paste your Adzuna App Key here"},
+            {"key": "adzuna", "label": "App ID:App Key", "placeholder": "e.g. a1b2c3d4:e5f6g7h8i9j0"},
         ],
     },
     "anthropic": {
@@ -108,6 +102,20 @@ class StepApiKeys(BaseStep):
                 providers_to_show.append(pid)
         providers_to_show.append("anthropic")
 
+        # Skip linkedin and glassdoor as standalone sections if indeed is shown
+        # (they share the same key and are explained in the indeed section)
+        if "indeed" in providers_to_show:
+            providers_to_show = [p for p in providers_to_show
+                                  if p not in ("linkedin", "glassdoor")]
+        else:
+            # If indeed not enabled but linkedin or glassdoor are,
+            # show a combined RapidAPI section once
+            has_rapidapi = any(p in providers_to_show for p in ("linkedin", "glassdoor"))
+            if has_rapidapi:
+                providers_to_show = [p for p in providers_to_show
+                                      if p not in ("linkedin", "glassdoor")]
+                providers_to_show.insert(1, "indeed")
+
         scroll = ctk.CTkScrollableFrame(frame, fg_color="transparent")
         scroll.pack(fill="both", expand=True)
         scroll.grid_columnconfigure(0, weight=1)
@@ -115,6 +123,11 @@ class StepApiKeys(BaseStep):
         for pid in providers_to_show:
             info = PROVIDER_INSTRUCTIONS.get(pid)
             if not info:
+                continue
+            # Skip sections with no fields and no meaningful steps
+            if not info["fields"] and all(
+                "already configured" in s for s in info["steps"]
+            ):
                 continue
             self._build_provider_section(scroll, pid, info)
 
@@ -135,7 +148,7 @@ class StepApiKeys(BaseStep):
         for i, step_text in enumerate(info["steps"], 1):
             ctk.CTkLabel(
                 section,
-                text=f"  {i}.  {step_text}",
+                text=f"  {i}.   {step_text}",
                 font=ctk.CTkFont(size=12),
                 text_color="gray",
                 anchor="w",
@@ -152,7 +165,7 @@ class StepApiKeys(BaseStep):
                          font=ctk.CTkFont(size=13)).grid(row=0, column=0, sticky="w")
 
             entry = ctk.CTkEntry(row, placeholder_text=field["placeholder"],
-                                 show="•" if "key" in field["label"].lower() or "secret" in field["label"].lower() else "")
+                                 show="\u2022" if "key" in field["label"].lower() or "secret" in field["label"].lower() else "")
             entry.grid(row=0, column=1, sticky="ew", padx=(8, 8))
             self._entries[key] = entry
 
@@ -165,6 +178,8 @@ class StepApiKeys(BaseStep):
             status.grid(row=0, column=2)
             self._status_labels[key] = status
 
+        # Verify button (only for sections with fields)
+        if info["fields"]:
             verify_btn = ctk.CTkButton(
                 section, text=f"Verify {info['name']} Key",
                 width=160, height=30,
@@ -186,10 +201,13 @@ class StepApiKeys(BaseStep):
                 key_val   = key.get().strip()
                 email_val = email.get().strip()
                 if not key_val or not email_val:
-                    self._set_status("usajobs", "⚠ Enter key + email", "orange")
+                    self._set_status("usajobs", "! Enter key + email", "orange")
                     return
                 provider = UsajobsProvider(key_val, email_val)
-                valid, msg = provider.validate_key()
+                try:
+                    valid, msg = provider.validate_key()
+                except ProviderError as e:
+                    valid, msg = False, str(e)
             else:
                 field_key = info["fields"][0]["key"]
                 entry = self._entries.get(field_key)
@@ -198,13 +216,13 @@ class StepApiKeys(BaseStep):
                 key_val = entry.get().strip()
                 fmt_ok, fmt_msg = keyring_manager.validate_key_format(field_key, key_val)
                 if not fmt_ok:
-                    self._set_status(field_key, f"⚠ {fmt_msg[:30]}", "orange")
+                    self._set_status(field_key, f"! {fmt_msg[:30]}", "orange")
                     return
                 # For non-USAJobs providers, format check is all we do for now
                 valid, msg = True, "Format looks good"
 
-            color = "#4CAF50" if valid else "#e05252"
-            symbol = "✓" if valid else "✗"
+            color  = "#4CAF50" if valid else "#e05252"
+            symbol = "\u2713" if valid else "\u2715"
             self._set_status(info["fields"][0]["key"], f"{symbol} {msg[:25]}", color)
 
             if valid:
@@ -217,7 +235,7 @@ class StepApiKeys(BaseStep):
         threading.Thread(target=_run, daemon=True).start()
         # Show "Checking..." immediately
         for field in info["fields"]:
-            self._set_status(field["key"], "⟳ Checking...", "gray")
+            self._set_status(field["key"], "\u231b Checking...", "gray")
 
     def _set_status(self, key: str, text: str, color: str):
         """Update a status label — safe to call from background thread."""

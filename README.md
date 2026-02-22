@@ -264,12 +264,12 @@ All settings from the wizard are accessible in Preferences at any time. Changes 
 | Provider | Always On | Free | Notes |
 |----------|:---------:|:----:|-------|
 | **USAJobs** | ✅ | ✅ | Federal government jobs. Free registration at [developer.usajobs.gov](https://developer.usajobs.gov/APIRequest/). Requires an API key and the email address used to register. |
-| **Indeed** | Optional | Limited | Via [RapidAPI JSearch](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch). Free tier: 10 requests/month. |
-| **LinkedIn** | Optional | Limited | Also via RapidAPI JSearch — same key as Indeed. |
-| **Glassdoor** | Optional | Limited | Also via RapidAPI JSearch — same key as Indeed and LinkedIn. |
+| **Indeed** | Optional | Limited | Via [RapidAPI JSearch](https://rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch). Free tier: 10 requests/month. One RapidAPI key covers Indeed, LinkedIn, and Glassdoor. |
+| **LinkedIn** | Optional | Limited | Covered by your RapidAPI key — no separate LinkedIn developer account or API key required. |
+| **Glassdoor** | Optional | Limited | Covered by your RapidAPI key — no separate Glassdoor developer account or API key required. |
 | **Adzuna** | Optional | ✅ | Direct [Adzuna API](https://developer.adzuna.com/). Free tier: 250 requests/month. Enter credentials as `app_id:app_key`. |
 
-**Note on RapidAPI providers:** Indeed, LinkedIn, and Glassdoor all route through the same JSearch endpoint. One RapidAPI key covers all three, and they share a single monthly quota. Enabling one is effectively enabling all three at no additional cost.
+**Getting a RapidAPI key:** Sign up at [rapidapi.com](https://rapidapi.com), search for **JSearch**, and subscribe to the free tier. One key covers Indeed, LinkedIn, and Glassdoor simultaneously. The free tier allows 10 requests per month — each search counts as one request per provider enabled.
 
 ---
 
