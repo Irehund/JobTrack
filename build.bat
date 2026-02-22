@@ -27,12 +27,22 @@ pyinstaller ^
     --name "JobTrack" ^
     --onefile ^
     --windowed ^
-    --icon "assets/icons/jobtrack.ico" ^
     --add-data "assets;assets" ^
     --hidden-import "customtkinter" ^
     --hidden-import "PIL" ^
     --hidden-import "folium" ^
     --hidden-import "keyring.backends.Windows" ^
+    --hidden-import "ui.wizard.base_step" ^
+    --hidden-import "ui.wizard.step_api_keys" ^
+    --hidden-import "ui.wizard.step_complete" ^
+    --hidden-import "ui.wizard.step_google" ^
+    --hidden-import "ui.wizard.step_linkedin_reminder" ^
+    --hidden-import "ui.wizard.step_location" ^
+    --hidden-import "ui.wizard.step_preferences" ^
+    --hidden-import "ui.wizard.step_providers" ^
+    --hidden-import "ui.wizard.step_tracker" ^
+    --hidden-import "ui.wizard.step_welcome" ^
+    --hidden-import "ui.wizard.wizard_controller" ^
     main.py
 
 IF ERRORLEVEL 1 (
