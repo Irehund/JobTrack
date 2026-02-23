@@ -13,6 +13,34 @@ Each step subclass only needs to implement:
 import customtkinter as ctk
 
 
+def attach_context_menu(entry: ctk.CTkEntry):
+    """
+    Attach a right-click context menu (Cut / Copy / Paste / Select All)
+    to a CTkEntry widget. CustomTkinter does not include this by default.
+
+    Call this after creating any CTkEntry that users may want to
+    right-click paste into.
+    """
+    menu = ctk.CTkBaseClass  # placeholder — we use tkinter Menu directly
+    import tkinter as tk
+
+    popup = tk.Menu(entry, tearoff=0)
+    popup.add_command(label="Cut",        command=lambda: entry.event_generate("<<Cut>>"))
+    popup.add_command(label="Copy",       command=lambda: entry.event_generate("<<Copy>>"))
+    popup.add_command(label="Paste",      command=lambda: entry.event_generate("<<Paste>>"))
+    popup.add_separator()
+    popup.add_command(label="Select All", command=lambda: entry.event_generate("<<SelectAll>>"))
+
+    def _show_menu(event):
+        try:
+            popup.tk_popup(event.x_root, event.y_root)
+        finally:
+            popup.grab_release()
+
+    # Bind to the underlying tkinter widget inside CTkEntry
+    entry._entry.bind("<Button-3>", _show_menu)
+
+
 class BaseStep(ctk.CTkFrame):
     """Base wizard step with standard layout and navigation."""
 

@@ -7,7 +7,7 @@ Shows a screenshot slideshow per provider and validates the key live.
 
 import threading
 import customtkinter as ctk
-from ui.wizard.base_step import BaseStep
+from ui.wizard.base_step import BaseStep, attach_context_menu
 from core import keyring_manager
 
 # Instructions for each provider — shown as text steps since screenshots
@@ -167,6 +167,7 @@ class StepApiKeys(BaseStep):
             entry = ctk.CTkEntry(row, placeholder_text=field["placeholder"],
                                  show="\u2022" if "key" in field["label"].lower() or "secret" in field["label"].lower() else "")
             entry.grid(row=0, column=1, sticky="ew", padx=(8, 8))
+            attach_context_menu(entry)
             self._entries[key] = entry
 
             # Pre-fill if already stored
