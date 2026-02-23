@@ -25,9 +25,16 @@ from integrations.base_provider import BaseProvider, ProviderError
 
 logger = logging.getLogger("jobtrack.indeed")
 
-BASE_URL    = "https://jsearch.p.rapidapi.com/search"
+BASE_URL      = "https://jsearch.p.rapidapi.com/search"
 RAPIDAPI_HOST = "jsearch.p.rapidapi.com"
 REQUEST_TIMEOUT = 15
+
+
+def _safe_str(value, default="") -> str:
+    """Return a string from value, falling back to default if None."""
+    if value is None:
+        return default
+    return str(value).strip()
 
 
 class IndeedProvider(BaseProvider):
@@ -36,7 +43,7 @@ class IndeedProvider(BaseProvider):
     PROVIDER_ID  = "indeed"
     DISPLAY_NAME = "Indeed"
     REQUIRES_API_KEY = True
-    IS_FREE      = False   # RapidAPI free tier: 10 req/month
+    IS_FREE      = False   # RapidAPI free tier: 500 req/month
 
     def search(
         self,
@@ -48,12 +55,11 @@ class IndeedProvider(BaseProvider):
         keyword_str = " ".join(keywords) if keywords else "analyst"
 
         params = {
-            "query":              f"{keyword_str} {location}",
-            "page":               "1",
-            "num_pages":          "1",
-            "date_posted":        "month",
-            "employment_types":   "FULLTIME,CONTRACTOR",
-            "job_requirements":   "NO_EXPERIENCE,UNDER_3_YEARS_EXPERIENCE",
+            "query":            f"{keyword_str} {location}",
+            "page":             "1",
+            "num_pages":        "1",
+            "date_posted":      "month",
+            "employment_types": "FULLTIME,CONTRACTOR",
         }
 
         headers = {
@@ -70,6 +76,8 @@ class IndeedProvider(BaseProvider):
 
         if response.status_code == 401:
             raise ProviderError(self.PROVIDER_ID, "Invalid RapidAPI key.", 401)
+        if response.status_code == 403:
+            raise ProviderError(self.PROVIDER_ID, "Not subscribed to JSearch API on RapidAPI.", 403)
         if response.status_code == 429:
             raise ProviderError(self.PROVIDER_ID, "Rate limit reached.", 429)
         if not response.ok:
@@ -101,50 +109,49 @@ class IndeedProvider(BaseProvider):
                 timeout=REQUEST_TIMEOUT,
             )
             if response.status_code == 401:
-                return (False, "Invalid RapidAPI key (401).")
+                return False, "Invalid RapidAPI key (401)."
+            if response.status_code == 403:
+                return False, "Not subscribed to JSearch on RapidAPI. Visit rapidapi.com/letscrape-6bRBa3QguO5/api/jsearch to subscribe."
             if response.status_code == 429:
-                return (True, "Key valid — rate limited (429). Try later.")
+                return True, "Key valid — rate limited (429). Try later."
             if response.ok:
-                return (True, "Connected to Indeed via RapidAPI.")
-            return (False, f"Unexpected status {response.status_code}")
+                return True, "Connected to Indeed via RapidAPI."
+            return False, f"Unexpected status {response.status_code}"
         except requests.RequestException as e:
-            return (False, f"Network error: {e}")
+            return False, f"Network error: {e}"
 
     def _normalize(self, raw: dict) -> JobListing:
-        job_id    = f"indeed_{raw.get('job_id', raw.get('job_apply_link',''))[:40]}"
-        title     = raw.get("job_title", "")
-        company   = raw.get("employer_name", "")
-        location  = raw.get("job_city", "") + (
-            f", {raw['job_state']}" if raw.get("job_state") else "")
-        city      = raw.get("job_city", "")
-        state     = raw.get("job_state", "")
-        url       = raw.get("job_apply_link") or raw.get("job_google_link", "")
-        desc      = raw.get("job_description", "")
+        job_id  = f"indeed_{_safe_str(raw.get('job_id') or raw.get('job_apply_link', ''))[:40]}"
+        title   = _safe_str(raw.get("job_title"))
+        company = _safe_str(raw.get("employer_name"))
+        city    = _safe_str(raw.get("job_city"))
+        state   = _safe_str(raw.get("job_state"))
+        location = f"{city}, {state}".strip(", ") if city or state else _safe_str(raw.get("job_country"))
+        url     = _safe_str(raw.get("job_apply_link") or raw.get("job_google_link"))
+        desc    = _safe_str(raw.get("job_description"))
         is_remote = bool(raw.get("job_is_remote", False))
 
         # Salary
         salary_min = raw.get("job_min_salary")
         salary_max = raw.get("job_max_salary")
-        sal_period = raw.get("job_salary_period", "").lower()
+        sal_period = _safe_str(raw.get("job_salary_period")).lower()
         interval   = "annual" if "year" in sal_period or "annual" in sal_period else \
                      "hourly" if "hour" in sal_period else ""
 
         # Date
-        posted_str = raw.get("job_posted_at_datetime_utc", "")
+        posted_str  = _safe_str(raw.get("job_posted_at_datetime_utc"))
         date_posted = None
         if posted_str:
             try:
-                date_posted = datetime.fromisoformat(
-                    posted_str.replace("Z", "+00:00"))
+                date_posted = datetime.fromisoformat(posted_str.replace("Z", "+00:00"))
             except ValueError:
                 pass
 
-        # Experience level from title/description
+        # Experience level from title
         title_lower = title.lower()
-        desc_lower  = desc.lower()
-        if any(k in title_lower for k in ("senior","sr.","lead","principal")):
+        if any(k in title_lower for k in ("senior", "sr.", "lead", "principal")):
             exp = "senior"
-        elif any(k in title_lower for k in ("junior","jr.","entry","associate","i ")):
+        elif any(k in title_lower for k in ("junior", "jr.", "entry", "associate", "i ")):
             exp = "entry"
         elif "mid" in title_lower or "ii" in title_lower:
             exp = "mid"

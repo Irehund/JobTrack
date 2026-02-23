@@ -7,7 +7,7 @@ About dialog: version, tagline, GitHub link, privacy statement, MIT license.
 import webbrowser
 import customtkinter as ctk
 
-APP_VERSION  = "1.0.0"
+APP_VERSION  = "1.0.4"
 GITHUB_URL   = "https://github.com/Irehund/JobTracker"
 LICENSE_TEXT = """\
 MIT License

@@ -31,6 +31,21 @@ _PAY_INTERVAL_MAP = {"PA": "annual", "PH": "hourly", "BW": "annual", "WC": "annu
 _ENTRY_KEYWORDS = {"entry", "junior", "gs-01", "gs-02", "gs-03", "gs-04", "gs-05", "gs-06", "gs-07"}
 _SENIOR_KEYWORDS = {"senior", "lead", "principal", "gs-13", "gs-14", "gs-15", "ses"}
 
+# USAJobs uses different terminology than private sector.
+# These federal-friendly terms are appended to every search to improve results.
+_FEDERAL_SYNONYMS = [
+    "cybersecurity",
+    "information security",
+    "IT specialist",
+    "INFOSEC",
+    "information systems security",
+    "cyber",
+]
+
+# Maximum keywords to search individually before falling back to top terms only.
+# USAJobs API is slow — too many individual searches will time out.
+_MAX_INDIVIDUAL_SEARCHES = 5
+
 
 class UsajobsProvider(BaseProvider):
     """Fetches job listings from the USAJobs.gov API."""
@@ -59,39 +74,78 @@ class UsajobsProvider(BaseProvider):
         radius_miles: int,
         max_results: int = 50,
     ) -> list:
-        keyword_str = " ".join(keywords) if keywords else "analyst"
-        params = {
-            "Keyword": keyword_str,
-            "LocationName": location,
-            "Radius": str(radius_miles),
-            "ResultsPerPage": str(min(max_results, 500)),
-            "Fields": "min",
-            "SortField": "OpenDate",
-            "SortDirection": "Desc",
-        }
-        logger.debug(f"USAJobs search: keyword='{keyword_str}' location='{location}'")
-        try:
-            response = requests.get(self.BASE_URL, headers=self._headers(), params=params, timeout=15)
-        except requests.RequestException as e:
-            raise ProviderError(self.PROVIDER_ID, f"Network error: {e}")
+        """
+        Search USAJobs by running each keyword individually and combining
+        deduplicated results. This avoids the issue of joining all keywords
+        into a single phrase that the API tries to match literally.
 
-        if response.status_code == 401:
-            raise ProviderError(self.PROVIDER_ID, "Invalid API key or email.", 401)
-        if response.status_code == 429:
-            raise ProviderError(self.PROVIDER_ID, "Rate limit reached.", 429)
-        if response.status_code != 200:
-            raise ProviderError(self.PROVIDER_ID, "Unexpected response.", response.status_code)
+        Falls back to federal synonyms if no user keywords provided.
+        """
+        # Build the list of terms to search
+        search_terms = list(keywords) if keywords else []
 
-        try:
-            data = response.json()
-        except ValueError as e:
-            raise ProviderError(self.PROVIDER_ID, f"Invalid JSON: {e}")
+        # Always include federal synonyms to catch government-specific terminology
+        for syn in _FEDERAL_SYNONYMS:
+            if syn.lower() not in [k.lower() for k in search_terms]:
+                search_terms.append(syn)
 
-        items = data.get("SearchResult", {}).get("SearchResultItems", [])
-        logger.info(f"USAJobs: {len(items)} results for '{keyword_str}' near '{location}'")
+        # Limit individual searches to avoid timeouts
+        search_terms = search_terms[:_MAX_INDIVIDUAL_SEARCHES]
+
+        all_items: dict = {}  # keyed by PositionID to deduplicate
+
+        per_search = max(10, min(max_results, 25))
+
+        for term in search_terms:
+            params = {
+                "Keyword":        term,
+                "LocationName":   location,
+                "Radius":         str(radius_miles),
+                "ResultsPerPage": str(per_search),
+                "Fields":         "min",
+                "SortField":      "OpenDate",
+                "SortDirection":  "Desc",
+            }
+            logger.debug(f"USAJobs search: keyword='{term}' location='{location}'")
+            try:
+                response = requests.get(
+                    self.BASE_URL, headers=self._headers(),
+                    params=params, timeout=15,
+                )
+            except requests.RequestException as e:
+                raise ProviderError(self.PROVIDER_ID, f"Network error: {e}")
+
+            if response.status_code == 401:
+                raise ProviderError(self.PROVIDER_ID, "Invalid API key or email.", 401)
+            if response.status_code == 429:
+                raise ProviderError(self.PROVIDER_ID, "Rate limit reached.", 429)
+            if response.status_code != 200:
+                logger.warning(f"USAJobs: HTTP {response.status_code} for '{term}' — skipping")
+                continue
+
+            try:
+                data = response.json()
+            except ValueError as e:
+                logger.warning(f"USAJobs: Invalid JSON for '{term}' — {e}")
+                continue
+
+            items = data.get("SearchResult", {}).get("SearchResultItems", [])
+            logger.info(f"USAJobs: {len(items)} results for '{term}' near '{location}'")
+
+            for item in items:
+                descriptor = item.get("MatchedObjectDescriptor", item)
+                pos_id = descriptor.get("PositionID") or descriptor.get("MatchedObjectId")
+                if pos_id and pos_id not in all_items:
+                    all_items[pos_id] = item
+
+            # Stop early if we have enough results
+            if len(all_items) >= max_results:
+                break
+
+        logger.info(f"USAJobs: {len(all_items)} unique results total")
 
         listings = []
-        for item in items:
+        for item in list(all_items.values())[:max_results]:
             try:
                 listings.append(self._normalize(item))
             except Exception as e:

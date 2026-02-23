@@ -43,15 +43,16 @@ pyinstaller ^
     --hidden-import "ui.wizard.step_tracker" ^
     --hidden-import "ui.wizard.step_welcome" ^
     --hidden-import "ui.wizard.wizard_controller" ^
-	--hidden-import "ui.panels.jobs_panel" ^
+    --hidden-import "ui.panels.jobs_panel" ^
     --hidden-import "ui.panels.map_panel" ^
     --hidden-import "ui.panels.tracker_panel" ^
     --hidden-import "ui.panels.assistant_panel" ^
     --hidden-import "ui.panels.dashboard_panel" ^
-	--hidden-import "ui.dialogs.preferences_dialog" ^
+    --hidden-import "ui.main_window" ^
+    --hidden-import "ui.dialogs.preferences_dialog" ^
     --hidden-import "ui.dialogs.about_dialog" ^
     --hidden-import "ui.dialogs.retry_notification" ^
-	--hidden-import "google.oauth2.credentials" ^
+    --hidden-import "google.oauth2.credentials" ^
     --hidden-import "google_auth_oauthlib.flow" ^
     --hidden-import "google.auth.transport.requests" ^
     --hidden-import "google.auth.exceptions" ^

@@ -21,6 +21,7 @@ PROVIDER_INSTRUCTIONS = {
             "Submit the form — your API key will be emailed within minutes",
             "Also note the email address you registered with — you'll need both",
             "Paste your API key and email address below",
+            "Need help? See the setup guide at github.com/Irehund/JobTracker/wiki/USAJobs-API-Setup",
         ],
         "fields": [
             {"key": "usajobs",       "label": "API Key",           "placeholder": "Paste your USAJobs API key here"},
@@ -32,10 +33,11 @@ PROVIDER_INSTRUCTIONS = {
         "steps": [
             "Go to rapidapi.com and create a free account",
             "Search for 'JSearch' in the API marketplace",
-            "Click 'Subscribe to Test' and select the free tier (10 requests/month)",
-            "Go to the JSearch API page and click 'Endpoints'",
+            "Click 'Subscribe to Test' and select the free tier (500 requests/month)",
+            "Go to the JSearch API page and go to My Apps → default-application → Authorization to find your key",
             "Copy your API key from the 'Header Parameters' section (X-RapidAPI-Key)",
             "Paste it below — this single key covers Indeed, LinkedIn, AND Glassdoor",
+            "Need help? See the setup guide at github.com/Irehund/JobTracker/wiki/RapidAPI-JSearch-Setup",
         ],
         "fields": [
             {"key": "indeed", "label": "RapidAPI Key", "placeholder": "Paste your RapidAPI key here"},

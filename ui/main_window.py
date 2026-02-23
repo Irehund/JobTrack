@@ -9,17 +9,18 @@ Contains:
     - Status bar with last-searched timestamp and privacy indicator
 
 Layout:
-    ┌─────────────┬──────────────────────────────────┐
-    │             │                                  │
-    │   Sidebar   │       Content Panel Area         │
-    │   Nav       │                                  │
-    │             │                                  │
-    ├─────────────┴──────────────────────────────────┤
-    │  🔒 Private  │  Progress Bar  │  Last searched  │
-    └────────────────────────────────────────────────┘
+    ┌─────────────┬──────────────────────────────────────┐
+    │             │                                      │
+    │   Sidebar   │       Content Panel Area             │
+    │   Nav       │                                      │
+    │             │                                      │
+    ├─────────────┴──────────────────────────────────────┤
+    │  🔒 Private  │  Progress Bar  │  Last searched      │
+    └────────────────────────────────────────────────────┘
 """
 
 import customtkinter as ctk
+import webbrowser
 from datetime import datetime
 
 
@@ -30,11 +31,11 @@ class MainWindow(ctk.CTkFrame):
     """
 
     NAV_ITEMS = [
-        ("🏠  Dashboard",    "DashboardPanel",  "dashboard"),
-        ("🔍  Job Results",  "JobsPanel",       "jobs"),
-        ("🗺️  Map View",     "MapPanel",        "map"),
-        ("📋  Tracker",      "TrackerPanel",    "tracker"),
-        ("🤖  Assistant",    "AssistantPanel",  "assistant"),
+        ("  Dashboard",    "DashboardPanel",  "dashboard"),
+        ("  Job Results",  "JobsPanel",       "jobs"),
+        ("  Map View",     "MapPanel",        "map"),
+        ("  Tracker",      "TrackerPanel",    "tracker"),
+        ("  Assistant",    "AssistantPanel",  "assistant"),
     ]
 
     PANEL_MODULES = {
@@ -45,13 +46,15 @@ class MainWindow(ctk.CTkFrame):
         "AssistantPanel": ("ui.panels.assistant_panel", "AssistantPanel"),
     }
 
+    SUPPORT_EMAIL = "pjgrenier@gmail.com"
+
     def __init__(self, parent, config: dict, **kwargs):
         super().__init__(parent, fg_color="transparent", **kwargs)
         self.config = config
         self._active_panel_name: str = ""
         self._panels: dict = {}
         self._nav_buttons: dict = {}
-        self._job_results: list = []         # Shared job results across panels
+        self._job_results: list = []
         self._last_search_time: str = "Never"
 
         self._build_layout()
@@ -64,17 +67,15 @@ class MainWindow(ctk.CTkFrame):
     def _build_layout(self) -> None:
         """Configure the top-level grid."""
         self.grid_rowconfigure(0, weight=1)
-        self.grid_rowconfigure(1, weight=0)   # Bottom bar — fixed height
-        self.grid_columnconfigure(0, weight=0)  # Sidebar — fixed width
-        self.grid_columnconfigure(1, weight=1)  # Content — expands
+        self.grid_rowconfigure(1, weight=0)
+        self.grid_columnconfigure(0, weight=0)
+        self.grid_columnconfigure(1, weight=1)
 
-        # Sidebar container
         self._sidebar = ctk.CTkFrame(self, width=200, corner_radius=0)
         self._sidebar.grid(row=0, column=0, sticky="nsew")
         self._sidebar.grid_propagate(False)
-        self._sidebar.grid_rowconfigure(5, weight=1)  # Spacer row
+        self._sidebar.grid_rowconfigure(5, weight=1)
 
-        # Content panel container
         self._content = ctk.CTkFrame(self, fg_color="transparent")
         self._content.grid(row=0, column=1, sticky="nsew")
         self._content.grid_rowconfigure(0, weight=1)
@@ -82,7 +83,7 @@ class MainWindow(ctk.CTkFrame):
 
     def _build_sidebar(self) -> None:
         """Build the navigation sidebar."""
-        # ── App title ─────────────────────────────────────────────────────────
+        # ── App title ──────────────────────────────────────────────────────
         ctk.CTkLabel(
             self._sidebar,
             text="JobTrack",
@@ -102,7 +103,7 @@ class MainWindow(ctk.CTkFrame):
         ctk.CTkFrame(self._sidebar, height=1, fg_color=("gray80", "gray30")
                      ).grid(row=2, column=0, sticky="ew", padx=12, pady=(0, 8))
 
-        # ── Nav buttons ───────────────────────────────────────────────────────
+        # ── Nav buttons ────────────────────────────────────────────────────
         nav_frame = ctk.CTkFrame(self._sidebar, fg_color="transparent")
         nav_frame.grid(row=3, column=0, sticky="ew")
         self._sidebar.grid_columnconfigure(0, weight=1)
@@ -126,7 +127,7 @@ class MainWindow(ctk.CTkFrame):
         # Spacer
         ctk.CTkFrame(self._sidebar, fg_color="transparent").grid(row=5, column=0, sticky="nsew")
 
-        # ── Bottom sidebar buttons ─────────────────────────────────────────────
+        # ── Bottom sidebar buttons ─────────────────────────────────────────
         bottom = ctk.CTkFrame(self._sidebar, fg_color="transparent")
         bottom.grid(row=6, column=0, sticky="ew", padx=8, pady=(0, 8))
 
@@ -134,10 +135,10 @@ class MainWindow(ctk.CTkFrame):
         from ui.components.theme_toggle import ThemeToggle
         ThemeToggle(bottom, config=self.config).pack(fill="x", pady=2)
 
-        # Settings
+        # Preferences
         ctk.CTkButton(
             bottom,
-            text="⚙️  Preferences",
+            text="  Preferences",
             anchor="w",
             height=36,
             corner_radius=8,
@@ -151,7 +152,7 @@ class MainWindow(ctk.CTkFrame):
         # About
         ctk.CTkButton(
             bottom,
-            text="ℹ️  About",
+            text="  About",
             anchor="w",
             height=36,
             corner_radius=8,
@@ -162,6 +163,24 @@ class MainWindow(ctk.CTkFrame):
             command=self._open_about,
         ).pack(fill="x", pady=2)
 
+        # Divider above report button
+        ctk.CTkFrame(bottom, height=1, fg_color=("gray80", "gray30")
+                     ).pack(fill="x", padx=4, pady=(6, 4))
+
+        # Report an Issue
+        ctk.CTkButton(
+            bottom,
+            text="  Report an Issue",
+            anchor="w",
+            height=36,
+            corner_radius=8,
+            fg_color="transparent",
+            text_color=("gray40", "gray60"),
+            hover_color=("gray85", "gray25"),
+            font=ctk.CTkFont(size=12),
+            command=self._report_issue,
+        ).pack(fill="x", pady=2)
+
     def _build_bottom_bar(self) -> None:
         """Build the persistent bottom status/progress bar."""
         bar = ctk.CTkFrame(self, height=36, corner_radius=0,
@@ -170,20 +189,17 @@ class MainWindow(ctk.CTkFrame):
         bar.grid_propagate(False)
         bar.grid_columnconfigure(1, weight=1)
 
-        # Privacy indicator
         ctk.CTkLabel(
             bar,
-            text="🔒 Your data stays on your computer",
+            text="  Your data stays on your computer",
             font=ctk.CTkFont(size=11),
             text_color="gray",
         ).grid(row=0, column=0, padx=12, pady=8, sticky="w")
 
-        # Progress bar (center) — hidden when not searching
         from ui.components.progress_bar import ProgressBar
         self._progress_bar = ProgressBar(bar)
         self._progress_bar.grid(row=0, column=1, padx=20, pady=6, sticky="ew")
 
-        # Last searched timestamp
         self._status_var = ctk.StringVar(value="Last search: Never")
         ctk.CTkLabel(
             bar,
@@ -196,11 +212,9 @@ class MainWindow(ctk.CTkFrame):
 
     def navigate_to(self, panel_class_name: str) -> None:
         """Switch the content area to the named panel."""
-        # Hide all panels
         for widget in self._content.grid_slaves():
             widget.grid_remove()
 
-        # Highlight active nav button
         for name, btn in self._nav_buttons.items():
             if name == panel_class_name:
                 btn.configure(
@@ -213,7 +227,6 @@ class MainWindow(ctk.CTkFrame):
                     font=ctk.CTkFont(size=13),
                 )
 
-        # Lazily instantiate the panel
         if panel_class_name not in self._panels:
             mod_path, cls_name = self.PANEL_MODULES[panel_class_name]
             import importlib
@@ -237,7 +250,6 @@ class MainWindow(ctk.CTkFrame):
         self._last_search_time = datetime.now().strftime("%I:%M %p")
         self._status_var.set(f"Last search: {self._last_search_time}  •  {len(results)} jobs found")
 
-        # Refresh jobs and map panels if already instantiated
         for name in ("JobsPanel", "MapPanel"):
             if name in self._panels:
                 self._panels[name].on_results_updated(results)
@@ -246,11 +258,9 @@ class MainWindow(ctk.CTkFrame):
         return self._job_results
 
     def show_progress(self, message: str = "Searching...") -> None:
-        """Show the animated progress bar with a message."""
         self._progress_bar.start(message)
 
     def hide_progress(self) -> None:
-        """Hide the progress bar."""
         self._progress_bar.stop()
 
     # ── Dialogs ───────────────────────────────────────────────────────────────
@@ -262,6 +272,24 @@ class MainWindow(ctk.CTkFrame):
     def _open_about(self) -> None:
         from ui.dialogs.about_dialog import AboutDialog
         AboutDialog(self)
+
+    def _report_issue(self) -> None:
+        """Open the user's default mail client with a pre-filled bug report email."""
+        subject = "JobTrack Bug Report"
+        body = (
+            "Please describe the issue below.\n\n"
+            "What happened:\n\n\n"
+            "What I expected to happen:\n\n\n"
+            "Steps to reproduce:\n\n\n"
+            "JobTrack version: v1.0.4"
+        )
+        import urllib.parse
+        mailto = (
+            f"mailto:{self.SUPPORT_EMAIL}"
+            f"?subject={urllib.parse.quote(subject)}"
+            f"&body={urllib.parse.quote(body)}"
+        )
+        webbrowser.open(mailto)
 
     def _on_preferences_saved(self, updated_config: dict) -> None:
         from core import config_manager
